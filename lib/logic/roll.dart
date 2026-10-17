@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'filters.dart';
 
 /// 한 롤에 들어가는 사진 수.
-const int rollSize = 24;
+const int rollSize = 12;
 
 /// 롤의 상태.
 enum RollStatus {

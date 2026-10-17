@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:ui' show ImageFilter;
 import 'dart:isolate';
 
 import 'package:camera/camera.dart';
@@ -8,10 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app.dart';
-import '../logic/face_finder.dart';
 import '../logic/filters.dart';
-import '../logic/live_faces.dart';
-import '../logic/retouch.dart';
 import '../logic/roll.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
@@ -42,14 +38,9 @@ class _ShootScreenState extends State<ShootScreen> with WidgetsBindingObserver {
   double _minZoom = 1;
   double _maxZoom = 1;
   bool _grid = true;
-  bool _retouch = true;
   bool _busy = false;
   bool _flashFrame = false;
 
-  // 라이브 얼굴 보정: 영상 프레임에서 얼굴을 찾아 그 부분만 살짝 흐리게 덮는다.
-  final LiveFaceDetector _live = LiveFaceDetector();
-  LiveFaces? _liveFaces;
-  int _lastDetectMs = 0;
 
   RollRecord get _roll => RollApp.store.byNo(widget.rollNo)!;
 
@@ -65,7 +56,6 @@ class _ShootScreenState extends State<ShootScreen> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _c?.dispose();
-    _live.close();
     super.dispose();
   }
 
@@ -86,10 +76,7 @@ class _ShootScreenState extends State<ShootScreen> with WidgetsBindingObserver {
     try {
       final p = await SharedPreferences.getInstance();
       if (mounted) {
-        setState(() {
-          _grid = p.getBool('grid') ?? true;
-          _retouch = p.getBool('retouch') ?? true;
-        });
+        setState(() => _grid = p.getBool('grid') ?? true);
       }
     } catch (_) {}
   }
@@ -99,37 +86,6 @@ class _ShootScreenState extends State<ShootScreen> with WidgetsBindingObserver {
     try {
       final p = await SharedPreferences.getInstance();
       await p.setBool('grid', _grid);
-    } catch (_) {}
-  }
-
-  /// 보정이 켜져 있으면 영상 프레임을 받아 얼굴을 찾고, 꺼져 있으면 멈춘다.
-  Future<void> _syncStream() async {
-    final c = _c;
-    if (c == null || !c.value.isInitialized) return;
-    try {
-      if (_retouch && !c.value.isStreamingImages) {
-        await c.startImageStream(_onFrame);
-      } else if (!_retouch && c.value.isStreamingImages) {
-        await c.stopImageStream();
-        if (mounted) setState(() => _liveFaces = null);
-      }
-    } catch (_) {}
-  }
-
-  Future<void> _onFrame(CameraImage image) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    if (_busy || now - _lastDetectMs < 140) return;
-    _lastDetectMs = now;
-    final r = await _live.detect(image, _c!.description);
-    if (r != null && mounted && _retouch) setState(() => _liveFaces = r);
-  }
-
-  Future<void> _toggleRetouch() async {
-    setState(() => _retouch = !_retouch);
-    _syncStream();
-    try {
-      final p = await SharedPreferences.getInstance();
-      await p.setBool('retouch', _retouch);
     } catch (_) {}
   }
 
@@ -154,7 +110,7 @@ class _ShootScreenState extends State<ShootScreen> with WidgetsBindingObserver {
       setState(() => _c = null);
       await old.dispose();
     }
-    final c = CameraController(d, ResolutionPreset.high, enableAudio: false, imageFormatGroup: LiveFaceDetector.streamFormat);
+    final c = CameraController(d, ResolutionPreset.high, enableAudio: false, imageFormatGroup: ImageFormatGroup.jpeg);
     try {
       await c.initialize();
       _minZoom = await c.getMinZoomLevel();
@@ -171,7 +127,6 @@ class _ShootScreenState extends State<ShootScreen> with WidgetsBindingObserver {
         _c = c;
         _error = null;
       });
-      _syncStream();
     } catch (e) {
       await c.dispose();
       if (mounted) setState(() => _error = '카메라를 켤 수 없어요. 설정에서 카메라 권한을 확인해 주세요.');
@@ -224,7 +179,6 @@ class _ShootScreenState extends State<ShootScreen> with WidgetsBindingObserver {
     try {
       final x = await c.takePicture();
       final bytes = await x.readAsBytes();
-      final faces = _retouch ? await findFaces(x.path) : const <FaceBox>[];
       final now = DateTime.now();
       final req = ProcessRequest(
         jpeg: bytes,
@@ -232,8 +186,6 @@ class _ShootScreenState extends State<ShootScreen> with WidgetsBindingObserver {
         takenAt: now,
         mirror: c.description.lensDirection == CameraLensDirection.front,
         seed: roll.no * 100 + roll.shots.length,
-        faces: faces,
-        retouch: _retouch ? .6 : 0,
       );
       setState(() => _flashFrame = true);
       Future<void>.delayed(const Duration(milliseconds: 140), () {
@@ -388,25 +340,6 @@ class _ShootScreenState extends State<ShootScreen> with WidgetsBindingObserver {
             ),
           ),
           Positioned(
-            left: 22,
-            bottom: pad.bottom + 152,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _toggleRetouch,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 44, minHeight: 34),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (_retouch) const Diamond(color: Color(0xFFD9BD84)) else const SizedBox(width: 6),
-                    const SizedBox(width: 6),
-                    Text('retouch ${_retouch ? 'on' : 'off'}', style: serif(15, color: Colors.white)),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
             left: 0,
             right: 0,
             bottom: pad.bottom + 118,
@@ -484,39 +417,6 @@ class _ShootScreenState extends State<ShootScreen> with WidgetsBindingObserver {
             ),
           ),
         ),
-        if (_retouch && _liveFaces != null)
-          LayoutBuilder(
-            builder: (context, box) {
-              final lf = _liveFaces!;
-              final mirror = c.description.lensDirection == CameraLensDirection.front;
-              final screen = Size(box.maxWidth, box.maxHeight);
-              return Stack(
-                children: [
-                  for (final f in lf.boxes)
-                    () {
-                      final r = mapToScreen(f, lf.upright, screen, mirror: mirror);
-                      final grow = Offset(r.width * .12, r.height * .16);
-                      final rr = Rect.fromLTRB(r.left - grow.dx, r.top - grow.dy, r.right + grow.dx, r.bottom + grow.dy);
-                      return AnimatedPositioned(
-                        duration: const Duration(milliseconds: 140),
-                        left: rr.left,
-                        top: rr.top,
-                        width: rr.width,
-                        height: rr.height,
-                        child: IgnorePointer(
-                          child: ClipOval(
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 3.2, sigmaY: 3.2, tileMode: TileMode.clamp),
-                              child: ColoredBox(color: Colors.white.withValues(alpha: .07)),
-                            ),
-                          ),
-                        ),
-                      );
-                    }(),
-                ],
-              );
-            },
-          ),
         VignetteOverlay(strength: filter.vignette),
       ],
     );

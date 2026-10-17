@@ -45,7 +45,7 @@ class _LoadScreenState extends State<LoadScreen> {
               ListenableBuilder(
                 listenable: RollApp.store,
                 builder: (context, _) => RollHeader(
-                  right: RollApp.store.rolls.isEmpty ? '24 exposures' : 'album',
+                  right: RollApp.store.rolls.isEmpty ? '12 exposures' : 'album',
                   onRightTap: RollApp.store.rolls.isEmpty
                       ? null
                       : () => Navigator.of(context).push(fadeRoute<void>(const RollsScreen())),
