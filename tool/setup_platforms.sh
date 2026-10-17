@@ -20,6 +20,7 @@ if plist.exists():
     keys = {
         "NSCameraUsageDescription": "Roll needs the camera to take photos for your film roll.",
         "NSPhotoLibraryAddUsageDescription": "Roll saves developed photos to your photo library.",
+        "NSPhotoLibraryUsageDescription": "Roll saves developed photos to a Roll album in your photo library.",
     }
     add = "".join(
         f"\t<key>{k}</key>\n\t<string>{v}</string>\n" for k, v in keys.items() if f"<key>{k}</key>" not in s
