@@ -1,0 +1,18 @@
+:root{--bg:#ebe9e4;--ink:#1c1b19;--muted:#6f6b64;--hair:#cfcbc3;--gold:#a8884e}
+@media (prefers-color-scheme:dark){:root{--bg:#171614;--ink:#ece9e2;--muted:#a09b92;--hair:#33312d;--gold:#c9a96a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.75 "Gowun Batang","Apple SD Gothic Neo","Noto Serif KR",serif;padding-left:max(20px,env(safe-area-inset-left));padding-right:max(20px,env(safe-area-inset-right))}
+main{max-width:640px;margin:0 auto;padding:36px 0 64px}
+.bar{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--hair);padding-bottom:14px;margin-bottom:28px}
+.logo{font:italic 400 40px/1 "Cormorant Garamond",Georgia,serif;letter-spacing:-.5px}
+nav a{margin-left:18px;color:var(--muted);text-decoration:none;font-size:14px}
+nav a[aria-current]{color:var(--ink)}
+h1{font-size:26px;line-height:1.4;margin:0 0 6px}
+h2{font-size:18px;margin:32px 0 6px}
+p,li{margin:8px 0}
+ul{padding-left:20px}
+a{color:var(--ink);text-decoration-color:var(--gold);text-underline-offset:3px}
+.dim{color:var(--muted);font-size:14px}
+.lead{font-size:18px}
+hr{border:0;border-top:1px solid var(--hair);margin:40px 0}
+.diamond{display:inline-block;width:7px;height:7px;background:var(--gold);transform:rotate(45deg);margin-right:8px}

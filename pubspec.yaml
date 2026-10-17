@@ -1,0 +1,47 @@
+name: roll
+description: "Roll — 24장짜리 필름 롤을 끼우고, 한참 뒤에 천천히 현상되는 레트로 카메라"
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  camera: ^0.12.0
+  image: ^4.5.0
+  gal: ^2.3.0
+  path_provider: ^2.1.5
+  shared_preferences: ^2.3.0
+  in_app_purchase: ^3.2.0
+  flutter_local_notifications: ^19.4.0
+  timezone: ^0.10.0
+  flutter_timezone: ^4.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  image_path: "assets/icon/icon.png"
+  ios: true
+  remove_alpha_ios: true
+  android: "ic_launcher"
+  adaptive_icon_background: "#EBE9E4"
+  adaptive_icon_foreground: "assets/icon/icon-foreground.png"
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: Cormorant
+      fonts:
+        - asset: assets/fonts/CormorantGaramond-Italic.ttf
+          style: italic
+    - family: GowunBatang
+      fonts:
+        - asset: assets/fonts/GowunBatang-Regular.ttf
+        - asset: assets/fonts/GowunBatang-Bold.ttf
+          weight: 700
