@@ -4,6 +4,8 @@ import 'dart:ui' show Color, ColorFilter;
 
 import 'package:image/image.dart' as img;
 
+import 'retouch.dart';
+
 /// 날짜 스탬프 (사진 오른쪽에 세로로 찍히는 노란/주황 점 글씨).
 class StampSpec {
   const StampSpec({required this.pattern, required this.color, required this.y0});
@@ -180,6 +182,8 @@ class ProcessRequest {
     required this.takenAt,
     this.mirror = false,
     this.seed = 1,
+    this.faces = const [],
+    this.retouch = 0,
   });
 
   final Uint8List jpeg;
@@ -189,6 +193,12 @@ class ProcessRequest {
   /// 셀카(전면 카메라)는 좌우를 뒤집는다.
   final bool mirror;
   final int seed;
+
+  /// 사진에서 찾은 얼굴 (카메라가 찍은 원본 사진 기준)
+  final List<FaceBox> faces;
+
+  /// 얼굴 보정 세기 0~1 (0 이면 끔)
+  final double retouch;
 }
 
 /// 카메라가 찍은 JPEG 를 3:4 로 자르고 필터 · 입자 · 날짜 스탬프를 입혀 JPEG 로 돌려준다.
@@ -198,6 +208,7 @@ Uint8List processShot(ProcessRequest req) {
   var src = img.decodeImage(req.jpeg);
   if (src == null) throw const FormatException('사진을 읽을 수 없어요');
   src = img.bakeOrientation(src);
+  final srcWidth = src.width.toDouble();
   if (req.mirror) src = img.flipHorizontal(src);
 
   // 가운데를 3:4 세로로 자른다.
@@ -207,11 +218,22 @@ Uint8List processShot(ProcessRequest req) {
   } else {
     ch = (cw * 4 / 3).round();
   }
-  final cropped = img.copyCrop(src, x: (src.width - cw) ~/ 2, y: (src.height - ch) ~/ 2, width: cw, height: ch);
+  final cropX = (src.width - cw) ~/ 2, cropY = (src.height - ch) ~/ 2;
+  final cropped = img.copyCrop(src, x: cropX, y: cropY, width: cw, height: ch);
   final sized = img.copyResize(cropped, width: shotWidth, height: shotHeight, interpolation: img.Interpolation.average);
 
   final base = sized.numChannels == 3 ? sized : sized.convert(numChannels: 3);
   final rgb = base.getBytes(order: img.ChannelOrder.rgb);
+  // 얼굴 보정 (필터를 입히기 전에, 얼굴 부분만 아주 약하게)
+  if (req.retouch > 0 && req.faces.isNotEmpty) {
+    final scale = shotWidth / cw;
+    final boxes = [
+      for (final f in req.faces)
+        (req.mirror ? f.mirrored(srcWidth) : f).mapped(dx: cropX.toDouble(), dy: cropY.toDouble(), scale: scale),
+    ];
+    retouchFaces(rgb, shotWidth, shotHeight, base, boxes, strength: req.retouch);
+  }
+
   final out = Uint8List(shotWidth * shotHeight * 3);
   final rng = math.Random(req.seed);
   final amp = filter.grain;

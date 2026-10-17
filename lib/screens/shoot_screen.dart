@@ -7,7 +7,9 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app.dart';
+import '../logic/face_finder.dart';
 import '../logic/filters.dart';
+import '../logic/retouch.dart';
 import '../logic/roll.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
@@ -38,6 +40,7 @@ class _ShootScreenState extends State<ShootScreen> with WidgetsBindingObserver {
   double _minZoom = 1;
   double _maxZoom = 1;
   bool _grid = true;
+  bool _retouch = true;
   bool _busy = false;
   bool _flashFrame = false;
 
@@ -74,7 +77,12 @@ class _ShootScreenState extends State<ShootScreen> with WidgetsBindingObserver {
   Future<void> _loadPrefs() async {
     try {
       final p = await SharedPreferences.getInstance();
-      if (mounted) setState(() => _grid = p.getBool('grid') ?? true);
+      if (mounted) {
+        setState(() {
+          _grid = p.getBool('grid') ?? true;
+          _retouch = p.getBool('retouch') ?? true;
+        });
+      }
     } catch (_) {}
   }
 
@@ -83,6 +91,14 @@ class _ShootScreenState extends State<ShootScreen> with WidgetsBindingObserver {
     try {
       final p = await SharedPreferences.getInstance();
       await p.setBool('grid', _grid);
+    } catch (_) {}
+  }
+
+  Future<void> _toggleRetouch() async {
+    setState(() => _retouch = !_retouch);
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setBool('retouch', _retouch);
     } catch (_) {}
   }
 
@@ -176,6 +192,7 @@ class _ShootScreenState extends State<ShootScreen> with WidgetsBindingObserver {
     try {
       final x = await c.takePicture();
       final bytes = await x.readAsBytes();
+      final faces = _retouch ? await findFaces(x.path) : const <FaceBox>[];
       final now = DateTime.now();
       final req = ProcessRequest(
         jpeg: bytes,
@@ -183,6 +200,8 @@ class _ShootScreenState extends State<ShootScreen> with WidgetsBindingObserver {
         takenAt: now,
         mirror: c.description.lensDirection == CameraLensDirection.front,
         seed: roll.no * 100 + roll.shots.length,
+        faces: faces,
+        retouch: _retouch ? .6 : 0,
       );
       setState(() => _flashFrame = true);
       Future<void>.delayed(const Duration(milliseconds: 140), () {
@@ -331,6 +350,25 @@ class _ShootScreenState extends State<ShootScreen> with WidgetsBindingObserver {
                     if (_grid) const Diamond(color: Color(0xFFD9BD84)) else const SizedBox(width: 6),
                     const SizedBox(width: 6),
                     Text('grid ${_grid ? 'on' : 'off'}', style: serif(15, color: Colors.white)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 22,
+            bottom: pad.bottom + 152,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _toggleRetouch,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 34),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_retouch) const Diamond(color: Color(0xFFD9BD84)) else const SizedBox(width: 6),
+                    const SizedBox(width: 6),
+                    Text('retouch ${_retouch ? 'on' : 'off'}', style: serif(15, color: Colors.white)),
                   ],
                 ),
               ),

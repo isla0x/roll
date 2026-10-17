@@ -31,6 +31,18 @@ if plist.exists():
         s = s[:i] + add + s[i:]
     plist.write_text(s)
 
+# --- iOS: 얼굴 인식(ML Kit)은 iOS 16 이상이 필요하다 ---
+podfile = pathlib.Path("ios/Podfile")
+if podfile.exists():
+    s = podfile.read_text()
+    s = re.sub(r"^\s*#?\s*platform :ios, '[0-9.]+'", "platform :ios, '16.0'", s, count=1, flags=re.M)
+    podfile.write_text(s)
+pbx = pathlib.Path("ios/Runner.xcodeproj/project.pbxproj")
+if pbx.exists():
+    s = pbx.read_text()
+    s = re.sub(r"IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;", "IPHONEOS_DEPLOYMENT_TARGET = 16.0;", s)
+    pbx.write_text(s)
+
 # --- Android: 표시 이름 + 알림 권한 + 예약 알림 리시버 + 옛 기기 저장 권한 ---
 manifest = pathlib.Path("android/app/src/main/AndroidManifest.xml")
 if manifest.exists():
