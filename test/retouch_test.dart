@@ -1,8 +1,10 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' show Rect, Size;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:roll/logic/live_faces.dart';
 import 'package:roll/logic/retouch.dart';
 
 void main() {
@@ -51,5 +53,15 @@ void main() {
     expect(m.width, 80);
     final flipped = f.mirrored(300);
     expect(flipped.left, 160);
+  });
+
+  test('라이브 얼굴 상자를 화면 위치로 바꾼다', () {
+    // 화면 400x800, 카메라 화면 300x400 → 가로가 남아서 양옆이 잘린다 (배율 2)
+    final r = mapToScreen(const Rect.fromLTWH(100, 100, 50, 50), const Size(300, 400), const Size(400, 800));
+    expect(r.left, closeTo(100 * 2 - 100, .001));
+    expect(r.top, closeTo(200, .001));
+    expect(r.width, closeTo(100, .001));
+    final m = mapToScreen(const Rect.fromLTWH(100, 100, 50, 50), const Size(300, 400), const Size(400, 800), mirror: true);
+    expect(m.left, closeTo(400 - r.right, .001));
   });
 }
